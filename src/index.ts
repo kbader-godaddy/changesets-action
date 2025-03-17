@@ -16,18 +16,18 @@ const getOptionalInput = (name: string) => core.getInput(name) || undefined;
 
   const inputCwd = core.getInput("cwd");
   if (inputCwd) {
-    core.info("changing directory to the one given as the input");
+    core.info("Changing directory to the one given as input");
     process.chdir(inputCwd);
   }
 
   let setupGitUser = core.getBooleanInput("setupGitUser");
 
   if (setupGitUser) {
-    core.info("setting git user");
+    core.info("Setting git user");
     await gitUtils.setupUser();
   }
 
-  core.info("setting GitHub credentials");
+  core.info("Setting GitHub credentials");
   await fs.writeFile(
     `${process.env.HOME}/.netrc`,
     `machine github.com\nlogin github-actions[bot]\npassword ${githubToken}`
@@ -46,41 +46,39 @@ const getOptionalInput = (name: string) => core.getInput(name) || undefined;
   core.setOutput("publishedPackages", "[]");
   core.setOutput("hasChangesets", String(hasChangesets));
 
+  // Use custom registry if provided, otherwise default to npm registry
+  const customRegistry = process.env.CUSTOM_NPM_REGISTRY || "https://registry.npmjs.org/";
+  core.info(`Using custom npm registry: ${customRegistry}`);
+
   switch (true) {
     case !hasChangesets && !hasPublishScript:
       core.info("No changesets present or were removed by merging release PR. Not publishing because no publish script found.");
       return;
     case !hasChangesets && hasPublishScript: {
-      core.info(
-        "No changesets found. Attempting to publish any unpublished packages to npm"
-      );
+      core.info("No changesets found. Attempting to publish any unpublished packages.");
 
       let userNpmrcPath = `${process.env.HOME}/.npmrc`;
       if (fs.existsSync(userNpmrcPath)) {
         core.info("Found existing user .npmrc file");
         const userNpmrcContent = await fs.readFile(userNpmrcPath, "utf8");
-        const authLine = userNpmrcContent.split("\n").find((line) => {
-          // check based on https://github.com/npm/cli/blob/8f8f71e4dd5ee66b3b17888faad5a7bf6c657eed/test/lib/adduser.js#L103-L105
-          return /^\s*\/\/registry\.npmjs\.org\/:[_-]authToken=/i.test(line);
-        });
+        const authLine = userNpmrcContent.split("\n").find((line) =>
+          new RegExp(`\\s*//${customRegistry.replace(/^https?:\/\//, "")}/:_authToken=`, "i").test(line)
+        );
+
         if (authLine) {
-          core.info(
-            "Found existing auth token for the npm registry in the user .npmrc file"
-          );
+          core.info("Found existing auth token for the custom registry in the user .npmrc file");
         } else {
-          core.info(
-            "Didn't find existing auth token for the npm registry in the user .npmrc file, creating one"
-          );
+          core.info("Didn't find existing auth token for the custom registry in the user .npmrc file, creating one");
           fs.appendFileSync(
             userNpmrcPath,
-            `\n//registry.npmjs.org/:_authToken=${process.env.NPM_TOKEN}\n`
+            `\n//${customRegistry.replace(/^https?:\/\//, "")}/:_authToken=${process.env.NPM_TOKEN}\n`
           );
         }
       } else {
         core.info("No user .npmrc file found, creating one");
         fs.writeFileSync(
           userNpmrcPath,
-          `//registry.npmjs.org/:_authToken=${process.env.NPM_TOKEN}\n`
+          `//${customRegistry.replace(/^https?:\/\//, "")}/:_authToken=${process.env.NPM_TOKEN}\n`
         );
       }
 
