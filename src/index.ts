@@ -71,14 +71,14 @@ const getOptionalInput = (name: string) => core.getInput(name) || undefined;
           core.info("Didn't find existing auth token for the custom registry in the user .npmrc file, creating one");
           fs.appendFileSync(
             userNpmrcPath,
-            `\n//${customRegistry.replace(/^https?:\/\//, "")}/:_authToken=${process.env.NPM_TOKEN}\n`
+            `\n//${customRegistry.replace(/^https?:\/\//, "")}/:_authToken=${process.env.ARTIFACTORY_AUTH_TOKEN}\n`
           );
         }
       } else {
         core.info("No user .npmrc file found, creating one");
         fs.writeFileSync(
           userNpmrcPath,
-          `//${customRegistry.replace(/^https?:\/\//, "")}/:_authToken=${process.env.NPM_TOKEN}\n`
+          `//${customRegistry.replace(/^https?:\/\//, "")}/:_authToken=${process.env.ARTIFACTORY_AUTH_TOKEN}\n`
         );
       }
 
